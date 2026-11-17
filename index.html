@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ORRERY — Procedural WebGPU Planet Lab v1.0.6</title>
+<style>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color:#dfebf9;background:#050b16;color-scheme:dark}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden}
+#viewport{position:fixed;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}#viewport.drag{cursor:grabbing}
+.vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 60% 47%,transparent 23%,#02071333 75%,#02051088 100%)}
+#panel{position:fixed;left:18px;top:18px;bottom:18px;width:305px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#32465c transparent;background:#081323dd;border:1px solid #34475b88;border-radius:18px;padding:20px 20px 22px;backdrop-filter:blur(18px);box-shadow:0 12px 55px #0009;transition:transform .25s,opacity .25s}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:20px}.logo{width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#ace8ff,#5083aa 42%,#1c3451 55%,#060d1c 78%);box-shadow:0 0 26px #3a96da44;flex:none}.eyebrow{font-size:9px;letter-spacing:2.9px;text-transform:uppercase;color:#88a1b9;font-weight:800}.brand h1{font-size:21px;letter-spacing:4px;font-weight:700;margin:3px 0 0}.status{display:flex;align-items:center;gap:7px;border-radius:20px;padding:6px 9px;border:1px solid #274a4b;background:#113136;color:#a0e4db;font-size:10px;letter-spacing:1.2px;width:fit-content;margin-bottom:18px}.dot{width:6px;height:6px;border-radius:50%;background:#5ce8cb;box-shadow:0 0 8px #5ce8cb}.section{border-top:1px solid #29394c;padding-top:16px;margin-top:17px}.section-title{display:flex;justify-content:space-between;align-items:center;color:#acc2d8;font-size:10px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;margin-bottom:14px}.tiny{font-size:10px;color:#829ab0;letter-spacing:0;text-transform:none;font-weight:600}
+select,input[type=number]{font:inherit;width:100%;height:38px;border:1px solid #3a4d61;background:#101f31;color:#eff5ff;border-radius:9px;padding:0 10px;outline:none}select:focus,input:focus{border-color:#70b5da}select{cursor:pointer}input[type=range]{width:100%;height:14px;accent-color:#7dcef4;cursor:pointer;margin:6px 0 11px}.fieldlabel{display:flex;align-items:center;justify-content:space-between;margin:11px 0 2px;font-size:12px;color:#c7d6e6}.fieldlabel output{color:#9ddffc;font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px}.seedrow{display:grid;grid-template-columns:1fr 89px;gap:8px;margin-top:9px}.btn{border:1px solid #3a5269;color:#d0e6f7;border-radius:9px;background:#183047;font-size:12px;font-weight:650;padding:10px 10px;cursor:pointer;transition:background .15s,border .15s}.btn:hover{background:#244562;border-color:#6da6c8}.btn.primary{background:linear-gradient(125deg,#276e93,#185e79);border-color:#4c9fc2;color:#f1fcff}.btnrow{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.checkrow{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:12px;color:#c7d6e6}.switch{appearance:none;width:32px;height:19px;background:#2d4051;border-radius:20px;position:relative;cursor:pointer;transition:background .2s}.switch:checked{background:#258eb3}.switch:before{content:'';position:absolute;width:13px;height:13px;top:3px;left:3px;border-radius:50%;background:#e5f6ff;transition:transform .2s}.switch:checked:before{transform:translateX(13px)}
+#topright{position:fixed;top:25px;right:28px;text-align:right;pointer-events:none}#topright .eyebrow{margin-bottom:6px}#worldName{font-size:29px;letter-spacing:1px;font-weight:300}#worldSub{font:11px ui-monospace,monospace;color:#a8bcd1;margin-top:6px}
+#bottom{position:fixed;left:345px;right:20px;bottom:24px;display:flex;justify-content:center;gap:19px;align-items:center;pointer-events:none;font-size:11px;color:#8195aa;letter-spacing:.3px;flex-wrap:wrap}kbd{font:10px ui-monospace,monospace;background:#1b2d4088;border:1px solid #455c7588;border-radius:5px;padding:3px 5px;color:#bdcee1;margin-right:5px}
+#stats{position:fixed;right:28px;bottom:24px;display:flex;gap:16px;color:#b0c4d6;font:10px ui-monospace,monospace;pointer-events:none}#stats b{color:#96d5ec;font-weight:500}
+#error{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:650px;width:calc(100% - 36px);border:1px solid #745c58;border-radius:15px;padding:24px;background:#101d2aec;line-height:1.6;display:none;box-shadow:0 25px 100px #000a}#error h2{margin:0 0 10px;color:#ffd3bd}#error p{color:#d7dfec}#error code{background:#243349;padding:3px 5px;border-radius:4px}
+#menuButton{display:none;position:fixed;left:12px;top:12px;z-index:5}
+body.hide-ui #panel,body.hide-ui #topright,body.hide-ui #bottom,body.hide-ui #stats{opacity:0;pointer-events:none}body.hide-ui #panel{transform:translateX(-110%)}
+@media(max-width:900px){#bottom{display:none}#stats{bottom:12px}#panel{width:275px;left:10px;top:10px;bottom:10px;padding:16px}#topright{right:14px;top:16px}#worldName{font-size:20px}}
+@media(max-width:650px){#menuButton{display:block}#panel{left:8px;top:48px;bottom:8px;width:min(305px,calc(100vw - 16px));z-index:4}body.mobile-closed #panel{transform:translateX(-120%);opacity:0;pointer-events:none}#topright{top:17px;right:12px}#stats{right:12px}#worldSub{font-size:9px}}
+</style>
+</head>
+<body>
+<canvas id="viewport" aria-label="Interactive WebGPU procedural planet"></canvas>
+<div class="vignette"></div>
+<button id="menuButton" class="btn" aria-label="Toggle controls">☰</button>
+<aside id="panel">
+ <div class="brand"><div class="logo"></div><div><div class="eyebrow">Procedural planetary studio</div><h1>ORRERY</h1></div></div>
+ <div class="status"><span class="dot"></span><span id="gpuStatus">INITIALIZING WEBGPU</span></div>
+ <div class="section-title">Planet generator <span class="tiny">v 1.0.6</span></div>
+ <select id="preset" aria-label="Planet type"><option value="0">Terrestrial · Verdant</option><option value="1">Desert · Arid</option><option value="2">Cryosphere · Frozen</option><option value="3">Volcanic · Molten</option><option value="4">Exoplanet · Alien</option><option value="5">Gas giant · Banded</option></select>
+ <div class="seedrow"><input id="seed" type="number" min="0" max="999999" value="20741" aria-label="Generation seed"/><button id="randomize" class="btn primary">↻ Re-seed</button></div>
+ <div class="section"><div class="section-title">Surface sculpting</div>
+  <label class="fieldlabel" for="sea">Sea level <output id="seaVal"></output></label><input id="sea" type="range" min="0.31" max="0.65" value="0.47" step="0.005" />
+  <label class="fieldlabel" for="elevation">Relief height <output id="elevationVal"></output></label><input id="elevation" type="range" min="0.20" max="2.3" value="1.1" step="0.05" />
+  <label class="fieldlabel" for="detail">Terrain detail <output id="detailVal"></output></label><input id="detail" type="range" min="0.25" max="2.5" value="1.0" step="0.05" />
+ </div>
+ <div class="section"><div class="section-title">Atmospherics</div>
+  <label class="fieldlabel" for="cloud">Cloud coverage <output id="cloudVal"></output></label><input id="cloud" type="range" min="0" max="1" value="0.51" step="0.01" />
+  <label class="fieldlabel" for="air">Atmosphere density <output id="airVal"></output></label><input id="air" type="range" min="0" max="1.75" value="1.0" step="0.05" />
+  <div class="checkrow"><label for="showCloud">Cloud layer</label><input id="showCloud" type="checkbox" class="switch" checked /></div>
+  <div class="checkrow"><label for="showAir">Atmospheric glow</label><input id="showAir" type="checkbox" class="switch" checked /></div>
+  <div class="checkrow"><label for="lights">Night-side lights</label><input id="lights" type="checkbox" class="switch" checked /></div>
+ </div>
+ <div class="section"><div class="section-title">Orbit and illumination</div>
+  <label class="fieldlabel" for="sun">Star azimuth <output id="sunVal"></output></label><input id="sun" type="range" min="-180" max="180" value="60" step="1" />
+  <label class="fieldlabel" for="tilt">Axial tilt <output id="tiltVal"></output></label><input id="tilt" type="range" min="-60" max="60" value="23" step="1" />
+  <label class="fieldlabel" for="speed">Spin speed <output id="speedVal"></output></label><input id="speed" type="range" min="0" max="3" value="0.5" step="0.05" />
+  <div class="checkrow"><label for="spin">Auto-rotate</label><input id="spin" type="checkbox" class="switch" checked /></div>
+ </div>
+ <div class="section"><div class="section-title">Render and export</div>
+  <label class="fieldlabel" for="renderBackend">Rendering backend <output>Ray = smooth · Mesh = 3D relief</output></label>
+  <select id="renderBackend" aria-label="Rendering backend"><option value="ray">Ray-sphere · Default</option><option value="mesh">Displaced mesh · Experimental</option></select>
+  <label class="fieldlabel" for="renderMode">Rendering diagnostic</label>
+  <select id="renderMode" aria-label="Surface rendering diagnostic"><option value="0">Normal · Atmospheric &amp; Lit</option><option value="1">Surface albedo · Unlit</option><option value="2">Surface normals · RGB</option><option value="3">Solid test color · Verify geometry</option><option value="4">FULLSCREEN MAGENTA · Verify render pass</option></select>
+  <select id="quality" aria-label="Sphere quality"><option value="64">Low · 16k triangles</option><option value="96" selected>Balanced · 37k triangles</option><option value="160">High · 102k triangles</option></select>
+  <div class="btnrow"><button id="reset" class="btn">Reset camera</button><button id="snapshot" class="btn primary">Save PNG</button></div>
+  <div class="btnrow"><button id="pause" class="btn">Pause animation</button><button id="hide" class="btn">Hide UI · H</button></div>
+ </div>
+</aside>
+<header id="topright"><div class="eyebrow">Active celestial body</div><div id="worldName">AURELIA / 20741</div><div id="worldSub">PROCEDURAL • NO TEXTURES • GPU SHADER</div></header>
+<footer id="bottom"><span><kbd>DRAG</kbd> Orbit</span><span><kbd>SCROLL</kbd> Zoom</span><span><kbd>SPACE</kbd> Pause</span><span><kbd>R</kbd> New seed</span><span><kbd>H</kbd> Hide UI</span><span><kbd>D</kbd> Diagnostics</span></footer>
+<div id="stats"><span>FPS <b id="fps">--</b></span><span>TRIS <b id="tris">--</b></span><span>WEBGPU <b>ACTIVE</b></span></div>
+<div id="error" role="alert"><h2>WebGPU unavailable</h2><p id="errorMsg"></p><p id="compatHint">Open this page using <code>http://localhost</code> or <code>https://</code> in a recent Chrome, Edge, or another WebGPU-capable browser. Check that hardware acceleration is enabled.</p></div>
+<script id="shader" type="x-shader/wgsl">
+struct Globals {
+ viewProj: mat4x4<f32>, invViewProj: mat4x4<f32>, model: mat4x4<f32>, cloudModel: mat4x4<f32>,
+ camera: vec4<f32>, sun: vec4<f32>, terrain: vec4<f32>, weather: vec4<f32>, flags: vec4<f32>, extra: vec4<f32>
+};
+@group(0) @binding(0) var<uniform> g: Globals;
+const PI: f32 = 3.141592653589793;
+fn saturate(x:f32)->f32{return clamp(x,0.0,1.0);}
+fn hash3(p:vec3<f32>)->f32{
+ var q=fract(p*0.1031); q=q+dot(q,q.yzx+33.33); return fract((q.x+q.y)*q.z);
+}
+fn noise3(x:vec3<f32>)->f32{
+ let i=floor(x); let f=fract(x); let u=f*f*(3.0-2.0*f);
+ let a=mix(hash3(i+vec3<f32>(0.0,0.0,0.0)),hash3(i+vec3<f32>(1.0,0.0,0.0)),u.x);
+ let b=mix(hash3(i+vec3<f32>(0.0,1.0,0.0)),hash3(i+vec3<f32>(1.0,1.0,0.0)),u.x);
+ let c=mix(hash3(i+vec3<f32>(0.0,0.0,1.0)),hash3(i+vec3<f32>(1.0,0.0,1.0)),u.x);
+ let d=mix(hash3(i+vec3<f32>(0.0,1.0,1.0)),hash3(i+vec3<f32>(1.0,1.0,1.0)),u.x);
+ return mix(mix(a,b,u.y),mix(c,d,u.y),u.z);
+}
+fn fbm(pIn:vec3<f32>)->f32{
+ var p=pIn; var a=0.5; var v=0.0; var norm=0.0;
+ for(var i=0;i<5;i=i+1){v=v+a*noise3(p);norm=norm+a;p=p*2.03+vec3<f32>(13.8,5.3,9.1);a=a*0.49;}
+ return v/norm;
+}
+fn seedOffset()->vec3<f32>{let s=g.terrain.w;return vec3<f32>(s*0.173+19.2,s*0.137+8.3,s*0.091+37.1);}
+fn continent(dir:vec3<f32>)->f32{
+ let o=seedOffset();let w=vec3<f32>(noise3(dir*2.8+o+0.3),noise3(dir*2.8+o+11.2),noise3(dir*2.8+o+25.9))-0.5;
+ return fbm((dir+w*0.37)*2.55+o*0.41);
+}
+fn landHeight(dir:vec3<f32>, c:f32)->f32{
+ if(g.flags.x>4.5){return 0.0;}
+ let land=max(c-g.terrain.x,0.0);
+ let o=seedOffset();
+ let rough=noise3(dir*(11.0*g.terrain.z)+o*0.29);
+ let ridge=1.0-abs(2.0*rough-1.0);
+ let ridgeStrength=pow(ridge,3.0)*smoothstep(0.0,0.11,land);
+ let micro=(noise3(dir*(31.0*g.terrain.z)+o*0.5)-0.5)*smoothstep(0.0,0.10,land);
+ return min(0.075, max(0.0, (land*0.20+ridgeStrength*0.018+micro*0.006)*g.terrain.y*0.65));
+}
+struct MeshIn{@location(0) pos:vec3<f32>};
+struct MeshOut{
+ @builtin(position) clip:vec4<f32>, @location(0) dir:vec3<f32>, @location(1) world:vec3<f32>,
+ @location(2) norm:vec3<f32>, @location(3) cont:f32, @location(4) elev:f32
+};
+@vertex fn vsPlanet(v:MeshIn)->MeshOut{
+ var o:MeshOut;let dir=normalize(v.pos);let cont=continent(dir);let h=landHeight(dir,cont);
+ let axis=select(vec3<f32>(0.0,1.0,0.0),vec3<f32>(1.0,0.0,0.0),abs(dir.y)>0.96);
+ let t=normalize(cross(axis,dir));let b=normalize(cross(dir,t));let eps=0.0032;
+ let dt=normalize(dir+t*eps);let db=normalize(dir+b*eps);
+ let pt=dt*(1.0+landHeight(dt,continent(dt)));let pb=db*(1.0+landHeight(db,continent(db)));
+ let p=dir*(1.0+h);
+ let n=normalize(cross(pt-p,pb-p));
+ o.world=(g.model*vec4<f32>(p,1.0)).xyz;
+ o.norm=normalize((g.model*vec4<f32>(n,0.0)).xyz);
+ o.clip=g.viewProj*vec4<f32>(o.world,1.0);
+ o.dir=dir;o.cont=cont;o.elev=h;return o;
+}
+fn terrainColor(v:MeshOut)->vec3<f32>{
+ let p=v.dir;let c=v.cont;let h=v.elev;let typeId=g.flags.x;
+ let o=seedOffset();
+ let lat=abs(p.y);let humid=fbm(p*7.7+o*0.35);
+ let crag=fbm(p*30.0+o*0.51);
+ if(typeId>4.5){
+   let storm=fbm(p*10.0+o*0.15+vec3<f32>(g.weather.w*0.022,0.0,0.0));
+   let bands=sin(atan2(p.z,p.x)*0.4 + p.y*64.0 + (storm-0.5)*13.0);
+   let swirl=sin(p.y*25.0+(storm-0.5)*18.0);
+   let t=saturate(0.5+bands*0.32+swirl*0.16);
+   let base=mix(vec3<f32>(0.33,0.18,0.13),vec3<f32>(0.92,0.71,0.46),t);
+   let bright=pow(saturate(storm),2.0)*0.2;
+   return mix(base,vec3<f32>(0.95,0.85,0.68),bright);
+ }
+ let coast=saturate((c-g.terrain.x)*155.0);
+ let oceanDepth=saturate((g.terrain.x-c)*10.0);
+ if(typeId<0.5){
+   if(coast<0.5){return mix(vec3<f32>(0.02,0.36,0.43),vec3<f32>(0.012,0.067,0.18),pow(oceanDepth,0.6));}
+   let temperature=saturate((1.0-lat)*1.24-h*3.6);
+   let dry=saturate((0.56-humid)*3.3);
+   let meadow=mix(vec3<f32>(0.055,0.18,0.085),vec3<f32>(0.22,0.35,0.115),humid);
+   let sand=vec3<f32>(0.48,0.38,0.21);
+   var color=mix(meadow,sand,dry*smoothstep(0.20,0.8,temperature));
+   color=mix(color,vec3<f32>(0.63,0.54,0.35),1.0-smoothstep(0.0,0.010, h));
+   let rock=smoothstep(0.038,0.075,h)+saturate((crag-0.64)*1.2);
+   color=mix(color,vec3<f32>(0.34,0.36,0.35),saturate(rock)*0.85);
+   let snow=saturate(max(smoothstep(0.65,0.91,lat),smoothstep(0.066,0.103,h)));
+   color=mix(color,vec3<f32>(0.80,0.91,0.91),snow);
+   return color;
+ }
+ if(typeId<1.5){
+   let dunes=0.77+0.4*crag;
+   var color=mix(vec3<f32>(0.26,0.095,0.054),vec3<f32>(0.83,0.49,0.22),saturate((c-g.terrain.x)*3.0+0.4));
+   color=color*dunes;
+   color=mix(color,vec3<f32>(0.43,0.29,0.22),smoothstep(0.045,0.10,h)*0.6);
+   return color;
+ }
+ if(typeId<2.5){
+   let dark=vec3<f32>(0.027,0.17,0.28);let ice=vec3<f32>(0.65,0.88,0.94);
+   return mix(dark,ice,saturate(0.48+0.65*crag+lat*0.18+smoothstep(0.0,0.07,h)*0.25));
+ }
+ if(typeId<3.5){
+   let basalt=mix(vec3<f32>(0.08,0.064,0.073),vec3<f32>(0.29,0.15,0.105),crag);
+   let cracks=pow(saturate(1.0-abs(noise3(p*57.0+o*0.35)-0.5)*13.0),8.0);
+   let lava=saturate(cracks*0.8 + (1.0-smoothstep(0.0,0.055,h))*0.35);
+   return mix(basalt,vec3<f32>(2.3,0.34,0.012),lava*0.88);
+ }
+ let aqua=mix(vec3<f32>(0.017,0.12,0.19),vec3<f32>(0.05,0.38,0.43),1.0-oceanDepth);
+ if(coast<0.5){return aqua;}
+ let forest=mix(vec3<f32>(0.19,0.057,0.32),vec3<f32>(0.24,0.56,0.46),humid);
+ let upland=mix(vec3<f32>(0.4,0.23,0.51),vec3<f32>(0.66,0.79,0.64),crag);
+ return mix(forest,upland,smoothstep(0.026,0.11,h)*0.8);
+}
+@fragment fn fsPlanet(v:MeshOut)->@location(0) vec4<f32>{
+ let N=normalize(v.norm);let V=normalize(g.camera.xyz-v.world);let L=normalize(g.sun.xyz);
+ let ndl=dot(N,L);let diffuse=max(ndl,0.0);
+ let typeId=g.flags.x;let sea=(v.cont<g.terrain.x && typeId<0.5);
+ var color=terrainColor(v);
+ // Diagnostic modes are intentionally unlit and bypass the atmosphere overlays.
+ // They tell us whether mesh rasterization succeeds independently of shading.
+ if(g.extra.x>2.5){return vec4<f32>(0.96,0.19,0.09,1.0);}
+ if(g.extra.x>1.5){return vec4<f32>(N*0.5+vec3<f32>(0.5),1.0);}
+ if(g.extra.x>0.5){return vec4<f32>(pow(clamp(color*2.0,vec3<f32>(0.0),vec3<f32>(1.0)),vec3<f32>(0.72)),1.0);}
+ let hemi=0.5+0.5*N.y;
+ var lighting=0.24+diffuse*1.05+hemi*0.085;
+ if(typeId>2.5 && typeId<3.5){lighting=lighting+0.18;}
+ color=color*lighting;
+ let halfway=normalize(L+V);
+ let ocean=select(0.0,1.0,sea);
+ let spec=pow(max(dot(N,halfway),0.0),mix(40.0,190.0,ocean))*max(ndl,0.0);
+ color=color+vec3<f32>(0.70,0.85,1.0)*spec*(0.07+ocean*1.25);
+ if(sea){let fresnel=pow(1.0-max(dot(N,V),0.0),5.0);color=color+vec3<f32>(0.06,0.23,0.35)*fresnel*0.6;}
+ if(g.flags.w>0.5 && typeId<0.5 && !sea){
+   let city=noise3(v.dir*130.0+seedOffset()*0.7);
+   let region=noise3(v.dir*16.0+seedOffset()*0.4);
+   let patch_InBed=pow(saturate((city-0.61)*6.0),3.0)*smoothstep(0.51,0.7,region);
+   let night=1.0-smoothstep(-0.19,0.1,ndl);
+   color=color+vec3<f32>(1.0,0.49,0.13)*patch_InBed*night*0.9;
+ }
+ if(typeId>2.5 && typeId<3.5){color=color+max(terrainColor(v)-vec3<f32>(0.26,0.17,0.15),vec3<f32>(0.0))*0.5;}
+ let rim=pow(1.0-max(dot(N,V),0.0),3.5)*max(ndl+0.25,0.0);
+ color=color+vec3<f32>(0.15,0.35,0.52)*rim*g.weather.z*0.28;
+ color=color/(1.0+color*0.30);
+ return vec4<f32>(pow(max(color,vec3<f32>(0.0)),vec3<f32>(0.88)),1.0);
+}
+// A slightly inset opaque solid inner globe prevents any cracks in the displaced
+// crust from exposing the far hemisphere or background sky. It is depth-written
+// BEFORE terrain and never competes with the ocean surface (radius 1.0).
+@vertex fn vsCore(v:MeshIn)->MeshOut{
+ var o:MeshOut;let dir=normalize(v.pos);let local_InBed=dir*0.982;
+ o.world=(g.model*vec4<f32>(local_InBed,1.0)).xyz;
+ o.norm=normalize((g.model*vec4<f32>(dir,0.0)).xyz);
+ o.clip=g.viewProj*vec4<f32>(o.world,1.0);
+ o.dir=dir;o.cont=0.0;o.elev=0.0;return o;
+}
+@fragment fn fsCore(v:MeshOut)->@location(0) vec4<f32>{
+ if(g.extra.x>2.5){return vec4<f32>(0.96,0.19,0.09,1.0);}
+ let N=normalize(v.norm);
+ if(g.extra.x>1.5){return vec4<f32>(N*0.5+vec3<f32>(0.5),1.0);}
+ let coreColor_InBed=select(vec3<f32>(0.035,0.055,0.078),vec3<f32>(0.008,0.048,0.16),g.flags.x<0.5);
+ if(g.extra.x>0.5){return vec4<f32>(coreColor_InBed*2.0,1.0);}
+ return vec4<f32>(coreColor_InBed*(0.30+max(dot(N,normalize(g.sun.xyz)),0.0)*1.10),1.0);
+}
+@vertex fn vsCloud(v:MeshIn)->MeshOut{
+ var o:MeshOut;let dir=normalize(v.pos);let p=dir*1.085;
+ o.world=(g.cloudModel*vec4<f32>(p,1.0)).xyz;
+ o.norm=normalize((g.cloudModel*vec4<f32>(dir,0.0)).xyz);
+ o.clip=g.viewProj*vec4<f32>(o.world,1.0);
+ o.dir=dir;o.cont=0.0;o.elev=0.0;return o;
+}
+@fragment fn fsCloud(v:MeshOut)->@location(0) vec4<f32>{
+ let o=seedOffset();let p=v.dir;let t=g.weather.w;
+ let curl=vec3<f32>(noise3(p*3.2+o*0.27+t*0.011),noise3(p*3.2+o*0.27+10.4),noise3(p*3.2+o*0.27+20.8))-0.5;
+ let f=fbm((p+curl*0.14)*7.0+o*0.11+vec3<f32>(t*0.014,0.0,0.0));
+ let threshold=mix(0.77,0.35,g.weather.x);
+ var cloud_InBed=smoothstep(threshold-0.055,threshold+0.10,f)*g.weather.y;
+ if(g.flags.x>4.5){cloud_InBed=cloud_InBed*0.37;}
+ if(cloud_InBed<0.012){discard;}
+ let N=normalize(v.norm);let L=normalize(g.sun.xyz);let day=saturate(dot(N,L)*0.7+0.3);
+ let edge=pow(1.0-saturate(dot(N,normalize(g.camera.xyz-v.world))),2.0);
+ let tint=mix(vec3<f32>(0.09,0.14,0.22),vec3<f32>(0.95,0.98,1.0),day);
+ return vec4<f32>(tint,cloud_InBed*(0.9+0.15*edge));
+}
+@vertex fn vsAtmos(v:MeshIn)->MeshOut{
+ var o:MeshOut;let dir=normalize(v.pos);let p=dir*1.135;
+ o.world=p;o.norm=dir;o.clip=g.viewProj*vec4<f32>(p,1.0);
+ o.dir=dir;o.cont=0.0;o.elev=0.0;return o;
+}
+@fragment fn fsAtmos(v:MeshOut)->@location(0) vec4<f32>{
+ let N=normalize(v.norm);let V=normalize(g.camera.xyz-v.world);let L=normalize(g.sun.xyz);
+ let facing=abs(dot(N,V));let rim=pow(1.0-facing,2.7);
+ let day=saturate(dot(N,L)*1.2+0.3);
+ var tint=mix(vec3<f32>(0.09,0.29,0.65),vec3<f32>(0.19,0.72,1.0),day);
+ if(g.flags.x>0.5 && g.flags.x<1.5){tint=vec3<f32>(0.85,0.45,0.18);}
+ if(g.flags.x>1.5 && g.flags.x<2.5){tint=vec3<f32>(0.29,0.73,0.96);}
+ if(g.flags.x>2.5 && g.flags.x<3.5){tint=vec3<f32>(0.81,0.25,0.11);}
+ if(g.flags.x>3.5 && g.flags.x<4.5){tint=vec3<f32>(0.52,0.30,0.96);}
+ if(g.flags.x>4.5){tint=vec3<f32>(0.65,0.54,0.35);}
+ let a=rim*(0.25+day*0.40)*g.weather.z;
+ if(a<0.004){discard;}
+ return vec4<f32>(tint,a);
+}
+struct SkyOut{@builtin(position) clip:vec4<f32>,@location(0) uv:vec2<f32>};
+@vertex fn vsSky(@builtin(vertex_index) id:u32)->SkyOut{
+ let p=array<vec2<f32>,3>(vec2<f32>(-1.0,-1.0),vec2<f32>(3.0,-1.0),vec2<f32>(-1.0,3.0));
+ var o:SkyOut;o.clip=vec4<f32>(p[id],0.99999,1.0);o.uv=p[id]*0.5+0.5;return o;
+}
+@fragment fn fsSky(i:SkyOut)->@location(0) vec4<f32>{
+ if(g.extra.x>3.5){return vec4<f32>(0.96,0.05,0.67,1.0);}
+ let clip=vec4<f32>(i.uv.x*2.0-1.0,i.uv.y*2.0-1.0,1.0,1.0);
+ let far=g.invViewProj*clip;let ray=normalize(far.xyz/far.w-g.camera.xyz);
+ let q=ray*345.0;let cell=floor(q);let f=fract(q)-0.5;
+ let starSeed=hash3(cell);let star=smoothstep(0.991,0.998,starSeed)*pow(saturate(1.0-length(f)*2.15),8.0);
+ let q2=ray*130.0;let c2=floor(q2);let f2=fract(q2)-0.5;
+ let bigStar=step(0.9984,hash3(c2))*pow(saturate(1.0-length(f2)*1.85),7.0);
+ let neb=fbm(ray*3.4+vec3<f32>(21.2,8.7,34.1));
+ let band=pow(saturate(1.0-abs(ray.y+sin(ray.x*5.0)*0.10)*3.0),2.0);
+ let base=vec3<f32>(0.0035,0.007,0.019)+vec3<f32>(0.012,0.017,0.029)*band*pow(neb,2.0)*1.8;
+ let col=base+vec3<f32>(0.65,0.76,1.0)*star*0.9+vec3<f32>(1.0,0.87,0.75)*bigStar;
+ return vec4<f32>(col,1.0);
+}
+
+// Reliable analytic sphere backend: no mesh attributes, no indexed vertices,
+// no camera view-projection dependency and no depth pipeline. Pixel rays and
+// intersections run directly on the GPU, so this diagnoses mesh-only failures.
+@fragment fn fsRaySphere(i:SkyOut)->@location(0) vec4<f32>{
+ if(g.extra.x>3.5){discard;}
+ let eye_InBed=g.camera.xyz;
+ let forward_InBed=normalize(-eye_InBed);
+ let right_InBed=normalize(cross(forward_InBed,vec3<f32>(0.0,1.0,0.0)));
+ let up_InBed=cross(right_InBed,forward_InBed);
+ let aspect_InBed=max(g.extra.y,1.0)/max(g.extra.z,1.0);
+ let xy_InBed=i.uv*2.0-vec2<f32>(1.0,1.0);
+ let ray_InBed=normalize(forward_InBed+right_InBed*(xy_InBed.x*aspect_InBed*0.44523)+up_InBed*(xy_InBed.y*0.44523));
+ let b_InBed=dot(eye_InBed,ray_InBed);
+ let discriminant_InBed=b_InBed*b_InBed-dot(eye_InBed,eye_InBed)+1.0;
+ if(discriminant_InBed<=0.0){discard;}
+ let t_InBed=-b_InBed-sqrt(discriminant_InBed);
+ if(t_InBed<=0.0){discard;}
+ let worldDir_InBed=normalize(eye_InBed+ray_InBed*t_InBed);
+ if(g.extra.x>2.5){return vec4<f32>(0.96,0.19,0.09,1.0);}
+ if(g.extra.x>1.5){return vec4<f32>(worldDir_InBed*0.5+0.5,1.0);}
+ let bodyRotation_InBed=mat3x3<f32>(g.model[0].xyz,g.model[1].xyz,g.model[2].xyz);
+ let bodyDir_InBed=normalize(transpose(bodyRotation_InBed)*worldDir_InBed);
+ let o_InBed=seedOffset();
+ let continent_InBed=continent(bodyDir_InBed);
+ let h_InBed=landHeight(bodyDir_InBed,continent_InBed);
+ let variation_InBed=fbm(bodyDir_InBed*18.0+o_InBed*0.23);
+ let latitude_InBed=abs(bodyDir_InBed.y);
+ let type_InBed=g.flags.x;
+ var base_InBed=vec3<f32>(0.055,0.21,0.34);
+ if(type_InBed<0.5){
+   let ocean_InBed=mix(vec3<f32>(0.008,0.044,0.14),vec3<f32>(0.03,0.36,0.46),saturate((continent_InBed-0.25)*2.0));
+   let land_InBed=mix(vec3<f32>(0.06,0.19,0.07),vec3<f32>(0.33,0.41,0.15),variation_InBed);
+   let rock_InBed=vec3<f32>(0.46,0.42,0.35);
+   var vegetation_InBed=mix(land_InBed,rock_InBed,smoothstep(0.027,0.085,h_InBed));
+   vegetation_InBed=mix(vegetation_InBed,vec3<f32>(0.86,0.92,0.94),max(smoothstep(0.72,0.92,latitude_InBed),smoothstep(0.082,0.12,h_InBed)));
+   base_InBed=mix(ocean_InBed,vegetation_InBed,smoothstep(g.terrain.x-0.009,g.terrain.x+0.009,continent_InBed));
+ } else if(type_InBed<1.5){
+   base_InBed=mix(vec3<f32>(0.37,0.17,0.07),vec3<f32>(0.89,0.62,0.31),variation_InBed);
+ } else if(type_InBed<2.5){
+   base_InBed=mix(vec3<f32>(0.055,0.26,0.43),vec3<f32>(0.83,0.92,0.98),saturate(variation_InBed*1.2+latitude_InBed*0.24));
+ } else if(type_InBed<3.5){
+   let lava_InBed=pow(saturate(1.0-abs(noise3(bodyDir_InBed*75.0+o_InBed*0.34)-0.5)*6.0),5.0);
+   base_InBed=mix(vec3<f32>(0.14,0.09,0.08),vec3<f32>(1.0,0.19,0.015),lava_InBed);
+ } else if(type_InBed<4.5){
+   base_InBed=mix(vec3<f32>(0.24,0.07,0.35),vec3<f32>(0.16,0.74,0.58),variation_InBed);
+ } else {
+   let storm_InBed=fbm(bodyDir_InBed*12.0+o_InBed*0.2+vec3<f32>(g.weather.w*0.015,0.0,0.0));
+   let stripe_InBed=sin(bodyDir_InBed.y*68.0+storm_InBed*15.0);
+   base_InBed=mix(vec3<f32>(0.40,0.21,0.13),vec3<f32>(0.94,0.78,0.56),saturate(0.5+0.45*stripe_InBed));
+ }
+ if(g.extra.x>0.5){return vec4<f32>(base_InBed,1.0);}
+ let sun_InBed=normalize(g.sun.xyz);
+ let diffuse_InBed=max(0.0,dot(worldDir_InBed,sun_InBed));
+ var final_InBed=base_InBed*(0.33+1.1*diffuse_InBed);
+ let oceanMask_InBed=(type_InBed<0.5 && continent_InBed<g.terrain.x);
+ if(oceanMask_InBed){
+   let halfway_InBed=normalize(sun_InBed-ray_InBed);
+   final_InBed=final_InBed+vec3<f32>(0.59,0.78,1.0)*pow(max(dot(worldDir_InBed,halfway_InBed),0.0),110.0)*diffuse_InBed*0.8;
+ }
+ if(g.flags.w>0.5 && type_InBed<0.5 && !oceanMask_InBed){
+   let city_InBed=noise3(bodyDir_InBed*130.0+o_InBed*0.7);
+   let region_InBed=noise3(bodyDir_InBed*16.0+o_InBed*0.4);
+   let glow_InBed=pow(saturate((city_InBed-0.6)*6.0),3.0)*smoothstep(0.49,0.68,region_InBed)*(1.0-smoothstep(-0.2,0.08,dot(worldDir_InBed,sun_InBed)));
+   final_InBed=final_InBed+vec3<f32>(1.0,0.48,0.09)*glow_InBed*1.5;
+ }
+ if(g.flags.y>0.5 && g.weather.x>0.0){
+   let cloudRotation_InBed=mat3x3<f32>(g.cloudModel[0].xyz,g.cloudModel[1].xyz,g.cloudModel[2].xyz);
+   let cloudDir_InBed=normalize(transpose(cloudRotation_InBed)*worldDir_InBed);
+   let cloudNoise_InBed=fbm(cloudDir_InBed*7.1+o_InBed*0.11+vec3<f32>(g.weather.w*0.014,0.0,0.0));
+   let cloudThreshold_InBed=mix(0.76,0.36,g.weather.x);
+   let alpha_InBed=smoothstep(cloudThreshold_InBed-0.05,cloudThreshold_InBed+0.10,cloudNoise_InBed)*0.85;
+   let cloudColor_InBed=mix(vec3<f32>(0.12,0.17,0.25),vec3<f32>(0.93,0.96,1.0),saturate(diffuse_InBed*1.3+0.14));
+   final_InBed=mix(final_InBed,cloudColor_InBed,alpha_InBed);
+ }
+ if(g.flags.z>0.5){
+   let facing_InBed=saturate(-dot(worldDir_InBed,ray_InBed));
+   let rim_InBed=pow(saturate(1.0-facing_InBed),3.3);
+   var colorAtmos_InBed=vec3<f32>(0.15,0.5,0.95);
+   if(type_InBed>0.5 && type_InBed<1.5){colorAtmos_InBed=vec3<f32>(0.85,0.49,0.22);}
+   final_InBed=final_InBed+colorAtmos_InBed*rim_InBed*(0.15+0.55*diffuse_InBed)*g.weather.z;
+ }
+ return vec4<f32>(pow(clamp(final_InBed,vec3<f32>(0.0),vec3<f32>(1.0)),vec3<f32>(0.86)),1.0);
+}
+</script>
+<script>
+(() => {
+'use strict';
+const $=id=>document.getElementById(id);
+const canvas=$('viewport');const err=$('error');
+const state={preset:0,seed:20741,sea:.47,elevation:1.1,detail:1.0,cloud:.51,air:1.0,sun:60,tilt:23,speed:.5,spin:true,showCloud:true,showAir:true,lights:true,quality:96,renderMode:0,renderBackend:'ray'};
+const names=['AURELIA','DUNE','NIVALIS','VULCAN','XENARA','JOVIAN'];
+let device,context,format,depthTexture,depthView,uniformBuffer,bindGroup,meshBuffer,indexBuffer,indexCount=0,pipelines={},shaderModule;
+let firstFrameCheck=true, firstGpuFault=false;
+function reportGpuFault(title,message){
+ if(firstGpuFault)return;
+ firstGpuFault=true;drawReady=false;
+ $('gpuStatus').textContent='GPU · VALIDATION ERROR';
+ showError(title,message);console.error(title,message);
+}
+let yaw=.54,pitch=.20,distance=3.42,rotation=.8,cloudRotation=.65,clock=0,paused=false,lastTime=0,frames=0,lastStats=0,drawReady=false;
+const shader=$('shader').textContent;
+const mat4={
+ multiply(a,b){let out=new Float32Array(16);for(let col=0;col<4;col++)for(let row=0;row<4;row++){let v=0;for(let k=0;k<4;k++)v+=a[k*4+row]*b[col*4+k];out[col*4+row]=v;}return out},
+ perspective(fov,aspect,n,f){const m=new Float32Array(16);const q=1/Math.tan(fov/2);m[0]=q/aspect;m[5]=q;m[10]=f/(n-f);m[11]=-1;m[14]=f*n/(n-f);return m},
+ lookAt(e,t,up){const sub=(a,b)=>a.map((v,i)=>v-b[i]);const norm=v=>{const l=Math.hypot(...v);return v.map(x=>x/l)};const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];let z=norm(sub(e,t)),x=norm(cross(up,z)),y=cross(z,x);return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-x.reduce((s,v,i)=>s+v*e[i],0),-y.reduce((s,v,i)=>s+v*e[i],0),-z.reduce((s,v,i)=>s+v*e[i],0),1])},
+ rotationY(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,0,-s,0,0,1,0,0,s,0,c,0,0,0,0,1])},
+ rotationZ(a){const c=Math.cos(a),s=Math.sin(a);return new Float32Array([c,s,0,0,-s,c,0,0,0,0,1,0,0,0,0,1])},
+ inverse(m){const inv=new Float32Array(16);let a=m;inv[0]=a[5]*a[10]*a[15]-a[5]*a[11]*a[14]-a[9]*a[6]*a[15]+a[9]*a[7]*a[14]+a[13]*a[6]*a[11]-a[13]*a[7]*a[10];inv[4]=-a[4]*a[10]*a[15]+a[4]*a[11]*a[14]+a[8]*a[6]*a[15]-a[8]*a[7]*a[14]-a[12]*a[6]*a[11]+a[12]*a[7]*a[10];inv[8]=a[4]*a[9]*a[15]-a[4]*a[11]*a[13]-a[8]*a[5]*a[15]+a[8]*a[7]*a[13]+a[12]*a[5]*a[11]-a[12]*a[7]*a[9];inv[12]=-a[4]*a[9]*a[14]+a[4]*a[10]*a[13]+a[8]*a[5]*a[14]-a[8]*a[6]*a[13]-a[12]*a[5]*a[10]+a[12]*a[6]*a[9]-a[12]*a[7]*a[10];inv[1]=-a[1]*a[10]*a[15]+a[1]*a[11]*a[14]+a[9]*a[2]*a[15]-a[9]*a[3]*a[14]-a[13]*a[2]*a[11]+a[13]*a[3]*a[10];inv[5]=a[0]*a[10]*a[15]-a[0]*a[11]*a[14]-a[8]*a[2]*a[15]+a[8]*a[3]*a[14]+a[12]*a[2]*a[11]-a[12]*a[3]*a[10];inv[9]=-a[0]*a[9]*a[15]+a[0]*a[11]*a[13]+a[8]*a[1]*a[15]-a[8]*a[3]*a[13]-a[12]*a[1]*a[11]+a[12]*a[3]*a[9];inv[13]=a[0]*a[9]*a[14]-a[0]*a[10]*a[13]-a[8]*a[1]*a[14]+a[8]*a[2]*a[13]+a[12]*a[1]*a[10]-a[12]*a[2]*a[9];inv[2]=a[1]*a[6]*a[15]-a[1]*a[7]*a[14]-a[5]*a[2]*a[15]+a[5]*a[3]*a[14]+a[13]*a[2]*a[7]-a[13]*a[3]*a[6];inv[6]=-a[0]*a[6]*a[15]+a[0]*a[7]*a[14]+a[4]*a[2]*a[15]-a[4]*a[3]*a[14]-a[12]*a[2]*a[7]+a[12]*a[3]*a[6];inv[10]=a[0]*a[5]*a[15]-a[0]*a[7]*a[13]-a[4]*a[1]*a[15]+a[4]*a[3]*a[13]+a[12]*a[1]*a[7]-a[12]*a[3]*a[5];inv[14]=-a[0]*a[5]*a[14]+a[0]*a[6]*a[13]+a[4]*a[1]*a[14]-a[4]*a[2]*a[13]-a[12]*a[1]*a[6]+a[12]*a[2]*a[5];inv[3]=-a[1]*a[6]*a[11]+a[1]*a[7]*a[10]+a[5]*a[2]*a[11]-a[5]*a[3]*a[10]-a[9]*a[2]*a[7]+a[9]*a[3]*a[6];inv[7]=a[0]*a[6]*a[11]-a[0]*a[7]*a[10]-a[4]*a[2]*a[11]+a[4]*a[3]*a[10]+a[8]*a[2]*a[7]-a[8]*a[3]*a[6];inv[11]=-a[0]*a[5]*a[11]+a[0]*a[7]*a[9]+a[4]*a[1]*a[11]-a[4]*a[3]*a[9]-a[8]*a[1]*a[7]+a[8]*a[3]*a[5];inv[15]=a[0]*a[5]*a[10]-a[0]*a[6]*a[9]-a[4]*a[1]*a[10]+a[4]*a[2]*a[9]+a[8]*a[1]*a[6]-a[8]*a[2]*a[5];let det=a[0]*inv[0]+a[1]*inv[4]+a[2]*inv[8]+a[3]*inv[12];for(let i=0;i<16;i++)inv[i]/=det;return inv}
+};
+// Catch malformed transformations before submitting corrupted GPU uniforms.
+// Earlier versions accidentally returned 15 elements from rotationZ, which
+// yielded NaNs in both the displaced mesh and ray-sphere terrain directions.
+function validateRotation(matrix, name){
+ if(matrix.length!==16 || !matrix.every(Number.isFinite))
+   throw new Error(`${name} matrix has missing or non-finite elements (expected 16)`);
+ const dot=(a,b)=>matrix[a*4]*matrix[b*4]+matrix[a*4+1]*matrix[b*4+1]+matrix[a*4+2]*matrix[b*4+2];
+ for(let a=0;a<3;a++)for(let b=0;b<3;b++){
+   const expected=a===b?1:0;
+   if(Math.abs(dot(a,b)-expected)>0.002)throw new Error(`${name} is not an orthonormal rotation matrix`);
+ }
+ if(Math.abs(matrix[15]-1)>0.002)throw new Error(`${name} has an invalid homogeneous coordinate`);
+}
+function showError(title,msg){err.style.display='block';err.querySelector('h2').textContent=title;$('errorMsg').textContent=msg;$('compatHint').style.display=(title==='WebGPU is not available'||title==='No GPU adapter found')?'':'none';}
+function createSphere(lat){const lon=lat*2;const verts=new Float32Array((lat+1)*(lon+1)*3);const indices=new Uint32Array(lat*lon*6);let vi=0,ii=0;for(let y=0;y<=lat;y++){let phi=y/lat*Math.PI;let sy=Math.cos(phi),r=Math.sin(phi);for(let x=0;x<=lon;x++){let theta=x/lon*Math.PI*2;verts[vi++]=r*Math.cos(theta);verts[vi++]=sy;verts[vi++]=r*Math.sin(theta)}}for(let y=0;y<lat;y++)for(let x=0;x<lon;x++){let a=y*(lon+1)+x,b=a+1,c=a+lon+1,d=c+1;indices[ii++]=a;indices[ii++]=b;indices[ii++]=c;indices[ii++]=b;indices[ii++]=d;indices[ii++]=c;}return {verts,indices}}
+// CPU-side regressions for the actual bugs reported in v1.0.5.
+function validateGeometry(){
+ const sample=createSphere(24);
+ if(sample.verts.length!==(25*49*3)||sample.indices.length!==24*48*6)throw new Error('Sphere geometry size is incorrect');
+ const v=i=>[sample.verts[i*3],sample.verts[i*3+1],sample.verts[i*3+2]];
+ const a=v(sample.indices[48*6+6*8]),b=v(sample.indices[48*6+6*8+1]),c=v(sample.indices[48*6+6*8+2]);
+ const u=b.map((x,i)=>x-a[i]),w=c.map((x,i)=>x-a[i]);
+ const normal=[u[1]*w[2]-u[2]*w[1],u[2]*w[0]-u[0]*w[2],u[0]*w[1]-u[1]*w[0]];
+ if(normal.reduce((s,x,i)=>s+x*a[i],0)<0)throw new Error('Mesh triangle winding is reversed: backface culling would hide the surface');
+ const base=mat4.rotationZ(23*Math.PI/180),spin=mat4.rotationY(.8);
+ validateRotation(base,'Axial tilt');validateRotation(mat4.multiply(base,spin),'Planet');
+ const eye=[1.7,.6,2.8];const vp=mat4.multiply(mat4.perspective(.84,1.8,.07,65),mat4.lookAt(eye,[0,0,0],[0,1,0]));
+ const inverse=mat4.inverse(vp);const identity=mat4.multiply(vp,inverse);
+ for(let c=0;c<4;c++)for(let r=0;r<4;r++)if(!Number.isFinite(identity[c*4+r])||Math.abs(identity[c*4+r]-(c===r?1:0))>0.001)throw new Error('View-projection inversion is invalid');
+}
+function updateBackendLabel(){$('tris').textContent=state.renderBackend==='ray'?'RAY':(indexCount/3/1000).toFixed(0)+'k';$('quality').disabled=state.renderBackend==='ray';}
+function replaceMesh(lat){const {verts,indices}=createSphere(lat);meshBuffer?.destroy();indexBuffer?.destroy();meshBuffer=device.createBuffer({size:verts.byteLength,usage:GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST});device.queue.writeBuffer(meshBuffer,0,verts);indexBuffer=device.createBuffer({size:indices.byteLength,usage:GPUBufferUsage.INDEX|GPUBufferUsage.COPY_DST});device.queue.writeBuffer(indexBuffer,0,indices);indexCount=indices.length;updateBackendLabel();}
+const alphaBlend={color:{srcFactor:'src-alpha',dstFactor:'one-minus-src-alpha',operation:'add'},alpha:{srcFactor:'one',dstFactor:'one-minus-src-alpha',operation:'add'}};
+let commonLayout, pipelineLayout;
+function pipeline(vertex,fragment,{blend=false,depthWrite=true,cull='back',sky=false}={}){
+ const vertexDesc={module:shaderModule,entryPoint:vertex};
+ if(!sky)vertexDesc.buffers=[{arrayStride:12,attributes:[{shaderLocation:0,offset:0,format:'float32x3'}]}];
+ const description={
+   layout:pipelineLayout,
+   vertex:vertexDesc,
+   fragment:{module:shaderModule,entryPoint:fragment,targets:[{format,...(blend?{blend:alphaBlend}:{})}]},
+   primitive:{topology:'triangle-list',cullMode:cull,frontFace:'ccw'}
+ };
+ if(!sky)description.depthStencil={format:'depth24plus',depthWriteEnabled:depthWrite,depthCompare:'less'};
+ return device.createRenderPipeline(description);
+}
+async function setupPipelines(){
+ shaderModule=device.createShaderModule({code:shader,label:'Procedural planet shader'});
+ // Report shader diagnostics before creating pipelines, so a single WGSL error is actionable.
+ const info=await shaderModule.getCompilationInfo();
+ const errors=info.messages.filter(x=>x.type==='error');
+ if(errors.length)throw new Error(errors.map(e=>`WGSL line ${e.lineNum}:${e.linePos}: ${e.message}`).join('\n'));
+ commonLayout=device.createBindGroupLayout({entries:[{binding:0,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform'}}]});
+ pipelineLayout=device.createPipelineLayout({bindGroupLayouts:[commonLayout]});
+ pipelines.sky=pipeline('vsSky','fsSky',{sky:true,cull:'none'});
+ pipelines.ray=pipeline('vsSky','fsRaySphere',{sky:true,cull:'none'});
+ pipelines.core=pipeline('vsCore','fsCore',{cull:'back'});
+ pipelines.planet=pipeline('vsPlanet','fsPlanet',{cull:'back'});
+ pipelines.cloud=pipeline('vsCloud','fsCloud',{blend:true,depthWrite:false,cull:'back'});
+ pipelines.atmos=pipeline('vsAtmos','fsAtmos',{blend:true,depthWrite:false,cull:'back'});
+ uniformBuffer=device.createBuffer({size:352,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+ bindGroup=device.createBindGroup({layout:commonLayout,entries:[{binding:0,resource:{buffer:uniformBuffer}}]});
+}
+function resize(){const dpr=Math.min(1.5,window.devicePixelRatio||1);let w=Math.max(1,Math.floor(canvas.clientWidth*dpr)),h=Math.max(1,Math.floor(canvas.clientHeight*dpr));if(device){w=Math.min(w,device.limits.maxTextureDimension2D);h=Math.min(h,device.limits.maxTextureDimension2D)}if(canvas.width===w&&canvas.height===h)return;canvas.width=w;canvas.height=h;if(device){depthTexture?.destroy();depthTexture=device.createTexture({size:[w,h],format:'depth24plus',usage:GPUTextureUsage.RENDER_ATTACHMENT});depthView=depthTexture.createView();}}
+const uniforms=new Float32Array(88);
+function writeUniforms(){const asp=canvas.width/canvas.height;const eye=[distance*Math.cos(pitch)*Math.sin(yaw),distance*Math.sin(pitch),distance*Math.cos(pitch)*Math.cos(yaw)];
+ const proj=mat4.perspective(48*Math.PI/180,asp,.07,65);const view=mat4.lookAt(eye,[0,0,0],[0,1,0]);const vp=mat4.multiply(proj,view);
+ uniforms.set(vp,0);uniforms.set(mat4.inverse(vp),16);
+ const tilt=mat4.rotationZ(state.tilt*Math.PI/180);
+ const model=mat4.multiply(tilt,mat4.rotationY(rotation));
+ const cloudModel=mat4.multiply(tilt,mat4.rotationY(cloudRotation));
+ validateRotation(tilt,'Axial tilt');validateRotation(model,'Planet');validateRotation(cloudModel,'Cloud');
+ uniforms.set(model,32);uniforms.set(cloudModel,48);
+ uniforms.set([...eye,1],64);const az=state.sun*Math.PI/180;uniforms.set([Math.cos(az)*.7,.35,Math.sin(az)*.7,0],68);
+ uniforms.set([state.sea,state.elevation,state.detail,state.seed],72);
+ uniforms.set([state.cloud,.86,state.air,clock],76);
+ uniforms.set([state.preset,state.showCloud?1:0,state.showAir?1:0,state.lights?1:0],80);
+ uniforms.set([state.renderMode,canvas.width,canvas.height,0],84);
+ device.queue.writeBuffer(uniformBuffer,0,uniforms);
+}
+function render(){
+ if(!drawReady)return;
+ resize();writeUniforms();
+ // Validation scope deliberately covers the FIRST frame, not just pipeline creation.
+ // It reports the initial GPU error instead of the secondary Invalid CommandBuffer failure.
+ const check=firstFrameCheck;
+ if(check){firstFrameCheck=false;device.pushErrorScope('validation');}
+ const encoder=device.createCommandEncoder({label:'ORRERY command encoder'});
+ const colorView=context.getCurrentTexture().createView();
+ // IMPORTANT: the fullscreen sky and ray-sphere pipelines have NO depthStencil
+ // state, so their render pass must have NO depthStencilAttachment.
+ // v1.0.4 mistakenly mixed them with depth24plus, invalidating the command buffer.
+ const screenPass=encoder.beginRenderPass({label:'Sky + ray sphere (color only)',colorAttachments:[{
+   view:colorView,clearValue:{r:0,g:0,b:0,a:1},loadOp:'clear',storeOp:'store'
+ }]});
+ screenPass.setPipeline(pipelines.sky);screenPass.setBindGroup(0,bindGroup);screenPass.draw(3);
+ if(state.renderBackend==='ray' && state.renderMode!==4){
+   screenPass.setPipeline(pipelines.ray);screenPass.setBindGroup(0,bindGroup);screenPass.draw(3);
+ }
+ screenPass.end();
+ if(state.renderBackend==='mesh' && state.renderMode!==4){
+   // A second pass is depth-compatible with the displaced mesh pipelines.
+   // Reuse the sky color attachment without clearing it.
+   const meshPass=encoder.beginRenderPass({label:'Displaced mesh (color + depth)',colorAttachments:[{
+     view:colorView,loadOp:'load',storeOp:'store'
+   }],depthStencilAttachment:{view:depthView,depthClearValue:1,depthLoadOp:'clear',depthStoreOp:'store'}});
+   meshPass.setVertexBuffer(0,meshBuffer);meshPass.setIndexBuffer(indexBuffer,'uint32');
+   meshPass.setBindGroup(0,bindGroup);
+   meshPass.setPipeline(pipelines.core);meshPass.drawIndexed(indexCount);
+   meshPass.setPipeline(pipelines.planet);meshPass.drawIndexed(indexCount);
+   if(state.renderMode===0&&state.showCloud&&state.cloud>0){meshPass.setPipeline(pipelines.cloud);meshPass.drawIndexed(indexCount);}
+   if(state.renderMode===0&&state.showAir&&state.air>0){meshPass.setPipeline(pipelines.atmos);meshPass.drawIndexed(indexCount);}
+   meshPass.end();
+ }
+ device.queue.submit([encoder.finish()]);
+ if(check){
+   device.popErrorScope().then(error=>{
+     if(error){reportGpuFault('First-frame GPU validation error',error.message);}
+     else if(!firstGpuFault){$('gpuStatus').textContent=state.renderBackend==='ray'?'WEBGPU · RAY SPHERE ONLINE':'WEBGPU · MESH ONLINE';}
+   }).catch(error=>reportGpuFault('GPU diagnostic failure',String(error)));
+ }
+}
+function frame(t){const dt=Math.min(Math.max((t-lastTime)/1000,0),.07);lastTime=t;if(!paused){clock+=dt;if(state.spin){rotation+=dt*.18*state.speed;cloudRotation+=dt*.23*state.speed;}}try{render()}catch(e){showError('Rendering error',e.message);drawReady=false;console.error(e);return;}frames++;if(t-lastStats>800){$('fps').textContent=Math.round(frames*1000/(t-lastStats||1));frames=0;lastStats=t;}requestAnimationFrame(frame)}
+function labels(){for(const [id,fmt] of Object.entries({sea:v=>(v*100).toFixed(1)+'%',elevation:v=>v.toFixed(2)+'×',detail:v=>v.toFixed(2)+'×',cloud:v=>Math.round(v*100)+'%',air:v=>v.toFixed(2)+'×',sun:v=>v+'°',tilt:v=>v+'°',speed:v=>v.toFixed(2)+'×'}))$(id+'Val').textContent=fmt(state[id]);$('worldName').textContent=names[state.preset]+' / '+state.seed;}
+function randomize(){state.seed=Math.floor(Math.random()*999999);$('seed').value=state.seed;rotation=Math.random()*6.28;labels()}
+for(let id of ['sea','elevation','detail','cloud','air','sun','tilt','speed'])$(id).addEventListener('input',e=>{state[id]=Number(e.target.value);labels()});
+for(let id of ['spin','showCloud','showAir','lights'])$(id).addEventListener('change',e=>state[id]=e.target.checked);
+$('renderMode').addEventListener('change',e=>{state.renderMode=Number(e.target.value)});
+$('renderBackend').addEventListener('change',e=>{state.renderBackend=e.target.value;updateBackendLabel();$('gpuStatus').textContent=state.renderBackend==='ray'?'WEBGPU · RAY SPHERE ONLINE':'WEBGPU · MESH ONLINE';});
+$('preset').addEventListener('change',e=>{state.preset=Number(e.target.value);if(state.preset===5){state.cloud=.38;state.air=.85}else if(state.preset===3){state.cloud=.23;state.air=.55}else if(state.preset===2){state.cloud=.48;state.air=1.15}else{state.cloud=.51;state.air=1.0}for(let id of ['cloud','air'])$(id).value=state[id];labels()});
+$('seed').addEventListener('input',e=>{const value=Number(e.target.value);if(Number.isFinite(value))state.seed=Math.min(999999,Math.max(0,value));labels()});
+$('randomize').addEventListener('click',randomize);
+$('quality').addEventListener('change',e=>{state.quality=Number(e.target.value);if(device)replaceMesh(state.quality)});
+function resetCamera(){yaw=.54;pitch=.20;distance=3.42;}$('reset').addEventListener('click',resetCamera);
+function togglePause(){paused=!paused;$('pause').textContent=paused?'Resume animation':'Pause animation'}$('pause').addEventListener('click',togglePause);
+$('hide').addEventListener('click',()=>document.body.classList.toggle('hide-ui'));$('menuButton').addEventListener('click',()=>document.body.classList.toggle('mobile-closed'));
+$('snapshot').addEventListener('click',()=>{render();canvas.toBlob(blob=>{if(!blob){alert('Could not capture this WebGPU canvas.');return}const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=`orrery-${names[state.preset].toLowerCase()}-${state.seed}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000)},'image/png')});
+let dragging=false,lastX=0,lastY=0;
+canvas.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;canvas.classList.add('drag');canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw-=dx*.006;pitch=Math.max(-1.48,Math.min(1.48,pitch+dy*.006))});
+const stopDrag=()=>{dragging=false;canvas.classList.remove('drag')};canvas.addEventListener('pointerup',stopDrag);canvas.addEventListener('pointercancel',stopDrag);
+canvas.addEventListener('wheel',e=>{e.preventDefault();distance=Math.max(1.6,Math.min(10,distance*Math.exp(e.deltaY*.0009)))},{passive:false});canvas.addEventListener('dblclick',resetCamera);
+window.addEventListener('keydown',e=>{if(['INPUT','SELECT','TEXTAREA'].includes(document.activeElement.tagName))return;if(e.code==='Space'){e.preventDefault();togglePause()}if(e.key.toLowerCase()==='r')randomize();if(e.key.toLowerCase()==='h')document.body.classList.toggle('hide-ui');if(e.key.toLowerCase()==='d'){state.renderMode=(state.renderMode+1)%5;$('renderMode').value=state.renderMode}});
+window.addEventListener('resize',resize);labels();updateBackendLabel();if(innerWidth<650)document.body.classList.add('mobile-closed');
+async function main(){
+ validateGeometry();
+ if(!navigator.gpu){showError('WebGPU is not available','This browser or its graphics configuration does not expose navigator.gpu.');return;}
+ let adapter=await navigator.gpu.requestAdapter({powerPreference:'high-performance'});if(!adapter){showError('No GPU adapter found','Your browser could not acquire a WebGPU adapter.');return;}
+ device=await adapter.requestDevice();device.addEventListener('uncapturederror',event=>{reportGpuFault('GPU validation error',event.error?.message||String(event.error));});device.lost.then(info=>{if(info.reason!=='destroyed')reportGpuFault('GPU device lost',info.message||'The graphics device disconnected. Reload to retry.');});
+ context=canvas.getContext('webgpu');format=navigator.gpu.getPreferredCanvasFormat();context.configure({device,format,alphaMode:'opaque',usage:GPUTextureUsage.RENDER_ATTACHMENT|GPUTextureUsage.COPY_SRC});
+ resize();device.pushErrorScope('validation');await setupPipelines();replaceMesh(state.quality);let scoped=await device.popErrorScope();if(scoped)throw new Error(scoped.message);
+ $('gpuStatus').textContent='WEBGPU · FIRST FRAME CHECK';drawReady=true;requestAnimationFrame(frame);
+}
+main().catch(e=>{showError('Initialization failed',e.message);console.error(e)});
+})();
+</script>
+</body></html>
